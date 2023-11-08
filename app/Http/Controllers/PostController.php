@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Post;
 use Illuminate\Http\RedirectResponse;
@@ -14,40 +15,38 @@ class PostController extends Controller
     public function all()
     {
         // Récupérer tous les posts, les paginer et les envoyer à la vue
-        $posts = Post::with('user')
+        $posts = Post::with(['user','category'])
                     ->orderBy('id','desc')
                     ->paginate(10);
         
-        return view('post.all',compact('posts'))->with('post_url');
+        return view('post.all',compact('posts'));
+    }
+    public function category($category)
+    {
+        // Recupérer les posts d'une certaine catégorie
+        $posts = Post::with(['user','category'])
+                        ->where('category_id', $category)
+                        ->orderBy('created_at','desc')
+                        ->paginate(10);
+        
+        // Si la catégorie n'est pas retrouvé, renvoyé la page 404
+        if ($posts->first() == null) {
+            return view('404');
+        }
+
+        return view('post.all',compact('posts'));
     }
     public function create() : View
     {
         // Vue pour la création d'un nouveau post
         return view('post.create');
     }
-    public function store(Request $request) : RedirectResponse
-    {
-        // Valider les données
-        $request->validate([
-            'title' => ['required','min:5'],
-            'content' => ['required','min:5']
-        ]);
-
-        // Création d'un nouveau post
-        $post = new Post();
-        $post->user_id = 1;
-        $post->title = $request->title;
-        $post->content = $request->content;
-        $post->save();
-
-
-        return redirect()->back()->with('success','Post created successfull');
-    }
 
     public function show(Post $post) : View
     {
-        // Passer le post à la vue pour l'affichage
-        $post->load('comments');
+        // Charger le post avec toutes les rélations
+        $post->load(['comments.user','user:id']);
+
         return view('post.show',compact('post'));
     }
 
@@ -57,15 +56,6 @@ class PostController extends Controller
         
         return view('post.update',compact('post'));
     }
-    public function store_update(Post $post, Request $request)
-    {
-        // Sauvegarder les modifications d'un post après la validation
-        $post->title = $request->title;
-        $post->content = $request->content;
-        $post->save();
-
-        return to_route('post.show',$post->id)->with('success','Post updated successfull');
-    }
 
     public function delete(Post $post)
     {
@@ -73,18 +63,5 @@ class PostController extends Controller
         $post->delete();
         
         return to_route('post.all')->with('Post has been deleted with success');
-    }
-
-    public function add_comment(Post $post, Request $request): RedirectResponse
-    {
-        // Commenter le post
-
-        $comment = new Comment();
-        $comment->post_id = $post->id;
-        $comment->author = $request->author;
-        $comment->content = $request->content;
-        $comment->save();
-
-        return redirect()->back()->with('success','Comment has been saved !');
     }
 }

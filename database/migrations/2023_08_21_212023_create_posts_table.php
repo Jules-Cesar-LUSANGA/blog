@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
+            $table->foreignIdFor(Category::class);
             $table->foreignIdFor(User::class);
             $table->string('title');
             $table->longText('content');
